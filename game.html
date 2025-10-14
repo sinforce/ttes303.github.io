@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>尖山文化文物配對遊戲</title>
-    <!-- 載入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* 使用 Inter 字體作為主要字體 */
@@ -93,12 +92,16 @@
         /* 石臼 (藍色系) */
 
 
-        /* 配對成功的卡片樣式 */
+        /* 將 matched 狀態的容器設定為不可點擊 */
         .card.matched {
             pointer-events: none;
-            opacity: 0.5;
-            transition: opacity 0.5s;
         }
+
+            /* 將透明度應用在 matched 容器內的 "子元素" (卡片的正反面) 上 */
+            .card.matched .card-face {
+                opacity: 0.5;
+                transition: opacity 0.5s; /* 讓透明度變化有動畫效果 */
+            }
 
         /* 響應式調整卡片大小 */
         @media (min-width: 640px) {
@@ -115,21 +118,24 @@
             }
         }
 
-        /* --- 配對成功小動畫 CSS --- */
+        /* --- 配對成功小動畫 CSS (修正版) --- */
         @keyframes match-success {
             0% {
-                transform: scale(1);
+                /* 確保動畫開始時，卡片是翻開的狀態 (180度) 且正常大小 */
+                transform: rotateY(180deg) scale(1);
                 opacity: 1;
             }
 
             50% {
-                transform: scale(1.05);
+                /* 在翻開的狀態下放大 */
+                transform: rotateY(180deg) scale(1.05);
                 opacity: 0.8;
                 box-shadow: 0 0 20px #10b981;
             }
 
             100% {
-                transform: scale(1);
+                /* 動畫結束時，恢復到翻開的狀態且正常大小 */
+                transform: rotateY(180deg) scale(1);
                 opacity: 1;
             }
         }
@@ -150,13 +156,10 @@
             點擊兩張卡片，將文物圖片與正確的名稱配對。
         </p>
 
-        <!-- 遊戲資訊面板 (計時器與步數顯示) -->
         <div class="flex justify-between items-center mb-6 p-4 bg-gray-100 rounded-lg shadow-inner">
-            <!-- 步數計數器 -->
             <div id="moves-counter" class="text-lg font-medium text-gray-700">
                 步數: 0
             </div>
-            <!-- 計時器顯示 -->
             <div id="timer-display" class="text-xl font-extrabold text-red-600">
                 時間: 0s
             </div>
@@ -165,12 +168,9 @@
             </button>
         </div>
 
-        <!-- 遊戲網格 - 調整為 4 欄 2 列，總共 8 張卡片 -->
         <div id="game-grid" class="grid grid-cols-4 gap-2 md:gap-4 justify-center max-w-2xl mx-auto">
-            <!-- 卡片將由 JavaScript 插入這裡 -->
         </div>
 
-        <!-- 勝利訊息模組 (考古小達人獎狀) -->
         <div id="win-message" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4">
             <div class="bg-white p-8 md:p-12 rounded-xl shadow-2xl text-center max-w-lg w-full border-8 border-yellow-500 bg-yellow-50">
                 <h2 class="text-4xl font-extrabold text-red-600 mb-2">⭐ 恭喜您！ ⭐</h2>
@@ -186,46 +186,42 @@
         </div>
     </div>
     <script>
-        // 文物配對卡片資料 (共 8 張卡片，4 組配對)
-        const cardData = [
-            // 第一組：石斧
-            { content: "石斧", matchId: "neolithic_axe", eraClass: "era-neolithic-item-green" },
+        // *** 修改 1: 建立一個主要的文物資料庫 ***
+        // 未來若要擴充，只需在此陣列中新增物件即可
+        const MASTER_CARD_DATA = [
             {
-                content: "石斧",
+                name: "石斧",
                 matchId: "neolithic_axe",
                 eraClass: "era-neolithic-item-green",
                 image: "https://collections.culture.tw/files/11/JPG640/20030120077_I001.jpg"
             },
-
-            // 第二組：陶罐
-            { content: "陶罐", matchId: "neolithic_pottery", eraClass: "era-neolithic-item-green" },
             {
-                content: "陶罐",
+                name: "陶罐",
                 matchId: "neolithic_pottery",
                 eraClass: "era-neolithic-item-green",
                 image: "https://www.sshm.ntpc.gov.tw/files/file_pool/4/0I066347713947086537/messageImage_1520386204472.jpg"
             },
-
-            // 第三組：玉珮 (使用佔位圖)
-            { content: "玉珮", matchId: "neolithic_jade", eraClass: "era-neolithic-item-red" },
             {
-                content: "玉珮",
+                name: "玉珮",
                 matchId: "neolithic_jade",
                 eraClass: "era-neolithic-item-red",
-                // *** 這是玉珮的佔位圖，請用您找到的玉珮圖片連結替換此處 ***
-                image: "https://placehold.co/80x80/fecaca/991b1b?text=尖山玉珮"
+                image: "https://placehold.co/80x80/fecaca/991b1b?text=尖山玉珮" // 佔位圖
             },
-
-            // 第四組：石臼 (使用佔位圖)
-            { content: "石臼", matchId: "neolithic_mortar", eraClass: "era-neolithic-item-blue" },
             {
-                content: "石臼",
+                name: "石臼",
                 matchId: "neolithic_mortar",
                 eraClass: "era-neolithic-item-blue",
-                // *** 這是石臼的佔位圖，請用您找到的石臼圖片連結替換此處 ***
-                image: "https://placehold.co/80x80/bfdbfe/1e40af?text=尖山石臼"
+                image: "https://placehold.co/80x80/bfdbfe/1e40af?text=尖山石臼" // 佔位圖
             },
+            // 您可以繼續在這裡新增更多文物配對資料
+            // {
+            //     name: "石刀",
+            //     matchId: "neolithic_knife",
+            //     eraClass: "era-neolithic-item-blue",
+            //     image: "https://placehold.co/80x80/bfdbfe/1e40af?text=尖山石刀"
+            // },
         ];
+
 
         // 遊戲狀態變數
         let gameGrid = document.getElementById('game-grid');
@@ -235,6 +231,7 @@
         let matchedCount = 0;
         let moves = 0;
         let lockBoard = false; // 鎖定面板，防止快速點擊
+        let cardsForCurrentGame = []; // 用於存放當前遊戲的8張牌
 
         // 計時器變數
         let seconds = 0;
@@ -302,7 +299,6 @@
             cardFront.classList.add('card-face', 'card-front', cardInfo.eraClass, 'text-gray-800', 'text-sm', 'flex-col');
 
             let contentHTML = '';
-
             if (cardInfo.image) {
                 // 圖片卡片：顯示圖片和簡短標籤
                 const imageTag = `<img src="${cardInfo.image}" alt="${cardInfo.content}" class="w-20 h-20 md:w-24 md:h-24 object-contain rounded-lg shadow-md mb-2" onerror="this.onerror=null;this.src='https://placehold.co/80x80/cccccc/333333?text=圖';" loading="lazy">`;
@@ -334,9 +330,19 @@
             // 清空舊面板
             gameGrid.innerHTML = '';
 
-            // 隨機排列卡片
-            const shuffledCards = shuffle([...cardData]); // 複製並洗牌
+            // *** 修改 1: 從 MASTER_CARD_DATA 動態生成遊戲牌組 ***
+            const shuffledMasterData = shuffle([...MASTER_CARD_DATA]);
+            const selectedPairs = shuffledMasterData.slice(0, 4); // 從大牌庫中隨機選4組
 
+            // 將選中的4組牌，每組都建立一張文字卡和一張圖片卡，變成8張牌
+            cardsForCurrentGame = selectedPairs.flatMap(pair => [
+                { content: pair.name, matchId: pair.matchId, eraClass: pair.eraClass, image: pair.image }, // 文字卡
+                { content: pair.name, matchId: pair.matchId, eraClass: pair.eraClass, image: pair.image } // 圖片卡
+            ]);
+
+            // 隨機排列這8張牌
+            const shuffledCards = shuffle(cardsForCurrentGame);
+            console.log(shuffledCards);
             // 重置狀態
             flippedCards = [];
             matchedCount = 0;
@@ -372,7 +378,10 @@
                 lockBoard = true; // 鎖定面板
                 moves++;
                 movesCounter.textContent = `步數: ${moves}`;
-                checkForMatch();
+
+                // *** 修改 2: 延遲檢查，讓第二張牌有時間播放翻面動畫 ***
+                // 動畫時間是 0.6s，所以延遲 600ms 等動畫播完再檢查
+                setTimeout(checkForMatch, 600);
             }
         }
 
@@ -407,6 +416,9 @@
             firstCard.classList.add('match-animate');
             secondCard.classList.add('match-animate');
 
+            // *** 修改 2: 確保配對成功後卡片維持翻開狀態 ***
+            // 關鍵點在於我們「不」移除 'flipped' class，所以卡片會保持正面
+            // 'matched' class 會讓卡片變透明且無法點擊
             setTimeout(() => {
                 // 移除動畫類別，並標記為 matched。
                 firstCard.classList.remove('match-animate');
@@ -443,7 +455,7 @@
          * 檢查是否所有卡片都已配對
          */
         function checkWin() {
-            if (matchedCount === cardData.length) {
+            if (matchedCount === cardsForCurrentGame.length) {
                 stopTimer(); // 遊戲結束，停止計時器
 
                 document.getElementById('final-moves').textContent = moves;
