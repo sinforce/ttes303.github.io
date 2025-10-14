@@ -1,0 +1,470 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>尖山文化文物配對遊戲</title>
+    <!-- 載入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 使用 Inter 字體作為主要字體 */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f7f7;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* 3D 翻轉效果的容器 */
+        .card-container {
+            perspective: 1000px;
+            width: 120px; /* 調整基礎寬度 */
+            height: 160px; /* 調整基礎高度 */
+            margin: 8px;
+        }
+
+        /* 卡片本身，包含正面和背面 */
+        .card {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.6s;
+            cursor: pointer;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+            .card.flipped {
+                transform: rotateY(180deg);
+            }
+
+        /* 卡片的正面（內容）和背面（覆蓋） */
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 8px;
+            text-align: center;
+            border-radius: 12px;
+            font-weight: 600;
+            line-height: 1.2;
+        }
+
+        /* 卡片背面 (未翻開狀態) */
+        .card-back {
+            background: linear-gradient(135deg, #1d4ed8, #3b82f6); /* 藍色漸層 */
+            color: white;
+            font-size: 1.25rem;
+            transform: rotateY(0deg);
+            border: 4px solid #bfdbfe;
+        }
+
+        /* 卡片正面 (翻開狀態) */
+        .card-front {
+            transform: rotateY(180deg);
+            border: 3px solid;
+        }
+
+        /* 時代顏色定義：為不同文物使用不同邊框顏色，增加視覺區分度 */
+        .era-neolithic-item-green {
+            background-color: #a7f3d0;
+            border-color: #10b981;
+        }
+        /* 石斧/陶罐 (綠色系) */
+        .era-neolithic-item-red {
+            background-color: #fecaca;
+            border-color: #ef4444;
+        }
+        /* 玉珮 (紅色系) */
+        .era-neolithic-item-blue {
+            background-color: #bfdbfe;
+            border-color: #3b82f6;
+        }
+        /* 石臼 (藍色系) */
+
+
+        /* 配對成功的卡片樣式 */
+        .card.matched {
+            pointer-events: none;
+            opacity: 0.5;
+            transition: opacity 0.5s;
+        }
+
+        /* 響應式調整卡片大小 */
+        @media (min-width: 640px) {
+            .card-container {
+                width: 140px;
+                height: 190px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .card-container {
+                width: 160px;
+                height: 220px;
+            }
+        }
+
+        /* --- 配對成功小動畫 CSS --- */
+        @keyframes match-success {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            50% {
+                transform: scale(1.05);
+                opacity: 0.8;
+                box-shadow: 0 0 20px #10b981;
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .card.match-animate {
+            animation: match-success 0.5s ease-out;
+        }
+        /* ------------------------------- */
+    </style>
+</head>
+<body>
+
+    <div class="max-w-4xl w-full bg-white p-6 md:p-10 rounded-xl shadow-2xl">
+        <h1 class="text-3xl md:text-4xl font-bold text-center mb-6 text-gray-800">
+            尖山文化：文物配對遊戲
+        </h1>
+        <p class="text-center text-gray-600 mb-6">
+            點擊兩張卡片，將文物圖片與正確的名稱配對。
+        </p>
+
+        <!-- 遊戲資訊面板 (計時器與步數顯示) -->
+        <div class="flex justify-between items-center mb-6 p-4 bg-gray-100 rounded-lg shadow-inner">
+            <!-- 步數計數器 -->
+            <div id="moves-counter" class="text-lg font-medium text-gray-700">
+                步數: 0
+            </div>
+            <!-- 計時器顯示 -->
+            <div id="timer-display" class="text-xl font-extrabold text-red-600">
+                時間: 0s
+            </div>
+            <button id="restart-button" class="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white font-bold rounded-lg transition duration-200 shadow-md">
+                重新開始
+            </button>
+        </div>
+
+        <!-- 遊戲網格 - 調整為 4 欄 2 列，總共 8 張卡片 -->
+        <div id="game-grid" class="grid grid-cols-4 gap-2 md:gap-4 justify-center max-w-2xl mx-auto">
+            <!-- 卡片將由 JavaScript 插入這裡 -->
+        </div>
+
+        <!-- 勝利訊息模組 (考古小達人獎狀) -->
+        <div id="win-message" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4">
+            <div class="bg-white p-8 md:p-12 rounded-xl shadow-2xl text-center max-w-lg w-full border-8 border-yellow-500 bg-yellow-50">
+                <h2 class="text-4xl font-extrabold text-red-600 mb-2">⭐ 恭喜您！ ⭐</h2>
+                <p class="text-2xl font-bold text-gray-800 mb-6">榮獲「尖山文化考古小達人」獎狀！</p>
+                <div class="inline-block bg-white p-6 rounded-lg shadow-inner text-left mb-6 border-4 border-gray-200">
+                    <p class="text-lg text-gray-700">總步數: <span id="final-moves" class="font-bold text-blue-600">0</span> 步</p>
+                    <p class="text-lg text-gray-700">總耗時: <span id="final-time" class="font-bold text-red-600">0</span> 秒</p>
+                </div>
+                <button onclick="restartGame()" class="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition duration-300 shadow-lg transform hover:scale-105">
+                    再玩一次
+                </button>
+            </div>
+        </div>
+    </div>
+    <script>
+        // 文物配對卡片資料 (共 8 張卡片，4 組配對)
+        const cardData = [
+            // 第一組：石斧
+            { content: "石斧", matchId: "neolithic_axe", eraClass: "era-neolithic-item-green" },
+            {
+                content: "石斧",
+                matchId: "neolithic_axe",
+                eraClass: "era-neolithic-item-green",
+                image: "https://collections.culture.tw/files/11/JPG640/20030120077_I001.jpg"
+            },
+
+            // 第二組：陶罐
+            { content: "陶罐", matchId: "neolithic_pottery", eraClass: "era-neolithic-item-green" },
+            {
+                content: "陶罐",
+                matchId: "neolithic_pottery",
+                eraClass: "era-neolithic-item-green",
+                image: "https://www.sshm.ntpc.gov.tw/files/file_pool/4/0I066347713947086537/messageImage_1520386204472.jpg"
+            },
+
+            // 第三組：玉珮 (使用佔位圖)
+            { content: "玉珮", matchId: "neolithic_jade", eraClass: "era-neolithic-item-red" },
+            {
+                content: "玉珮",
+                matchId: "neolithic_jade",
+                eraClass: "era-neolithic-item-red",
+                // *** 這是玉珮的佔位圖，請用您找到的玉珮圖片連結替換此處 ***
+                image: "https://placehold.co/80x80/fecaca/991b1b?text=尖山玉珮"
+            },
+
+            // 第四組：石臼 (使用佔位圖)
+            { content: "石臼", matchId: "neolithic_mortar", eraClass: "era-neolithic-item-blue" },
+            {
+                content: "石臼",
+                matchId: "neolithic_mortar",
+                eraClass: "era-neolithic-item-blue",
+                // *** 這是石臼的佔位圖，請用您找到的石臼圖片連結替換此處 ***
+                image: "https://placehold.co/80x80/bfdbfe/1e40af?text=尖山石臼"
+            },
+        ];
+
+        // 遊戲狀態變數
+        let gameGrid = document.getElementById('game-grid');
+        let movesCounter = document.getElementById('moves-counter');
+        let winMessage = document.getElementById('win-message');
+        let flippedCards = []; // 儲存已翻開的卡片 DOM 元素
+        let matchedCount = 0;
+        let moves = 0;
+        let lockBoard = false; // 鎖定面板，防止快速點擊
+
+        // 計時器變數
+        let seconds = 0;
+        let timerInterval = null;
+
+        /**
+         * 陣列洗牌函式 (Fisher-Yates 演算法)
+         * @param {Array} array - 要洗牌的陣列
+         * @returns {Array} - 洗牌後的陣列
+         */
+        function shuffle(array) {
+            let currentIndex = array.length, randomIndex;
+            while (currentIndex !== 0) {
+                randomIndex = Math.floor(Math.random() * currentIndex);
+                currentIndex--;
+                [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+            }
+            return array;
+        }
+
+        // --- 計時器函式 ---
+        /**
+         * 開始計時
+         */
+        function startTimer() {
+            if (timerInterval) clearInterval(timerInterval); // 清除舊的計時器
+            seconds = 0;
+            document.getElementById('timer-display').textContent = `時間: 0s`;
+
+            timerInterval = setInterval(() => {
+                seconds++;
+                document.getElementById('timer-display').textContent = `時間: ${seconds}s`;
+            }, 1000);
+        }
+
+        /**
+         * 停止計時
+         */
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+        }
+        // ------------------
+
+        /**
+         * 建立卡片 HTML 結構
+         * @param {Object} cardInfo - 卡片資料 (content, matchId, eraClass, image)
+         * @param {number} index - 卡片的索引
+         * @returns {HTMLElement} - 卡片容器 DOM 元素
+         */
+        function createCardElement(cardInfo, index) {
+            const cardContainer = document.createElement('div');
+            cardContainer.classList.add('card-container');
+
+            const card = document.createElement('div');
+            card.classList.add('card');
+            card.dataset.index = index;
+            card.dataset.match = cardInfo.matchId; // 使用 matchId 進行配對檢查
+            card.addEventListener('click', flipCard);
+
+            // 卡片正面 (內容)
+            const cardFront = document.createElement('div');
+            cardFront.classList.add('card-face', 'card-front', cardInfo.eraClass, 'text-gray-800', 'text-sm', 'flex-col');
+
+            let contentHTML = '';
+
+            if (cardInfo.image) {
+                // 圖片卡片：顯示圖片和簡短標籤
+                const imageTag = `<img src="${cardInfo.image}" alt="${cardInfo.content}" class="w-20 h-20 md:w-24 md:h-24 object-contain rounded-lg shadow-md mb-2" onerror="this.onerror=null;this.src='https://placehold.co/80x80/cccccc/333333?text=圖';" loading="lazy">`;
+                // 圖片卡下方的文字標籤
+                contentHTML = imageTag + `<div class="text-base font-semibold">${cardInfo.content}</div>`;
+
+            } else {
+                // 文字卡片：只顯示文物名稱
+                contentHTML = `<div class="text-2xl font-extrabold">${cardInfo.content}</div>`;
+            }
+
+            cardFront.innerHTML = contentHTML;
+
+            // 卡片背面 (覆蓋) - 顯示尖山文化
+            const cardBack = document.createElement('div');
+            cardBack.classList.add('card-face', 'card-back', 'text-xl', 'p-2');
+            cardBack.innerHTML = `<span>尖山文化</span>`;
+
+            card.appendChild(cardFront);
+            card.appendChild(cardBack);
+            cardContainer.appendChild(card);
+            return cardContainer;
+        }
+
+        /**
+         * 渲染遊戲面板
+         */
+        function initializeGame() {
+            // 清空舊面板
+            gameGrid.innerHTML = '';
+
+            // 隨機排列卡片
+            const shuffledCards = shuffle([...cardData]); // 複製並洗牌
+
+            // 重置狀態
+            flippedCards = [];
+            matchedCount = 0;
+            moves = 0;
+            lockBoard = false;
+            movesCounter.textContent = `步數: ${moves}`;
+            winMessage.classList.add('hidden');
+
+            startTimer(); // 啟動計時器
+
+            // 渲染卡片到網格
+            shuffledCards.forEach((cardInfo, index) => {
+                const cardElement = createCardElement(cardInfo, index);
+                gameGrid.appendChild(cardElement);
+            });
+        }
+
+        /**
+         * 處理卡片點擊與翻轉
+         */
+        function flipCard() {
+            // 檢查是否鎖定面板或卡片已翻開/已配對
+            if (lockBoard || this.classList.contains('flipped') || this.classList.contains('matched')) {
+                return;
+            }
+
+            // 翻轉卡片
+            this.classList.add('flipped');
+            flippedCards.push(this);
+
+            // 如果已經翻開兩張卡片
+            if (flippedCards.length === 2) {
+                lockBoard = true; // 鎖定面板
+                moves++;
+                movesCounter.textContent = `步數: ${moves}`;
+                checkForMatch();
+            }
+        }
+
+        /**
+         * 檢查兩張翻開的卡片是否配對成功
+         */
+        function checkForMatch() {
+            const [firstCard, secondCard] = flippedCards;
+
+            // 檢查配對條件：兩張卡片的 'data-match' 必須相同
+            const isMatch = firstCard.dataset.match === secondCard.dataset.match;
+
+            if (isMatch) {
+                // 配對成功
+                disableCards();
+            } else {
+                // 配對失敗
+                unflipCards();
+            }
+        }
+
+        /**
+         * 配對成功：將卡片標記為已配對並移除點擊事件
+         */
+        function disableCards() {
+            const [firstCard, secondCard] = flippedCards;
+
+            firstCard.removeEventListener('click', flipCard);
+            secondCard.removeEventListener('click', flipCard);
+
+            // 增加配對成功動畫類別
+            firstCard.classList.add('match-animate');
+            secondCard.classList.add('match-animate');
+
+            setTimeout(() => {
+                // 移除動畫類別，並標記為 matched。
+                firstCard.classList.remove('match-animate');
+                secondCard.classList.remove('match-animate');
+
+                firstCard.classList.add('matched');
+                secondCard.classList.add('matched');
+
+                matchedCount += 2; // 增加已配對的數量
+                resetBoard();
+                checkWin();
+            }, 500); // 動畫持續 0.5s
+        }
+
+        /**
+         * 配對失敗：將卡片翻回背面
+         */
+        function unflipCards() {
+            setTimeout(() => {
+                // 翻回背面
+                flippedCards.forEach(card => card.classList.remove('flipped'));
+                resetBoard();
+            }, 1200); // 1.2 秒後自動翻回
+        }
+
+        /**
+         * 重設翻牌狀態
+         */
+        function resetBoard() {
+            [flippedCards, lockBoard] = [[], false];
+        }
+
+        /**
+         * 檢查是否所有卡片都已配對
+         */
+        function checkWin() {
+            if (matchedCount === cardData.length) {
+                stopTimer(); // 遊戲結束，停止計時器
+
+                document.getElementById('final-moves').textContent = moves;
+                document.getElementById('final-time').textContent = seconds; // 更新最終時間
+
+                winMessage.classList.remove('hidden');
+            }
+        }
+
+        /**
+         * 重新開始遊戲
+         */
+        function restartGame() {
+            initializeGame();
+        }
+
+        // 綁定重新開始按鈕事件
+        document.getElementById('restart-button').addEventListener('click', restartGame);
+
+        // 遊戲啟動
+        window.onload = initializeGame;
+    </script>
+</body>
+</html>
