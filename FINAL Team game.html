@@ -5,60 +5,184 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Final Archaeology Battle</title>
     <style>
-        :root { --paleo: #8d6e63; --neo: #5d4037; --metal: #455a64; }
+        :root {
+            --paleo: #8d6e63;
+            --neo: #5d4037;
+            --metal: #455a64;
+            --bubble-width: clamp(88px, 10vw, 130px);
+            --bubble-height: clamp(64px, 8vw, 90px);
+            --header-padding: clamp(8px, 1.2vw, 10px);
+            --bank-height: clamp(120px, 20vh, 180px);
+            --bank-gap: clamp(6px, 1vw, 10px);
+            --bank-padding: clamp(6px, 1vw, 10px);
+        }
         body, html {
-            margin: 0; padding: 0; width: 100%; height: 100%;
+            margin: 0; padding: 0; width: 100%; min-height: 100%;
             overflow: hidden; font-family: "Century Gothic", Futura, sans-serif;
             background-color: #2b1a0a; touch-action: none; user-select: none;
         }
         #game-container {
-            display: flex; width: 100vw; height: 100vh;
+            display: flex; width: 100vw; height: 100vh; height: 100dvh;
             background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), 
                               url('https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Archaeological_dig_site.jpg/1200px-Archaeological_dig_site.jpg');
             background-size: cover; background-position: center;
         }
-        .team-section { flex: 1; display: flex; flex-direction: column; border: 4px solid #d35400; position: relative; }
-        .header { text-align: center; color: white; padding: 10px; background: rgba(0,0,0,0.85); border-bottom: 4px solid gold; }
-        .play-area { flex: 1; position: relative; }
-        .banks { display: flex; height: 180px; gap: 10px; padding: 10px; background: rgba(0,0,0,0.9); }
-        .bank { flex: 1; border-radius: 15px; border: 2px solid #fff; display: flex; flex-direction: column; align-items: center; overflow-y: auto; padding: 10px; color: white; }
-        .bank-title { font-weight: bold; margin-bottom: 5px; font-size: 1rem; color: #ffeb3b; }
+        .team-section {
+            flex: 1;
+            min-width: 0;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            border: 4px solid #d35400;
+            position: relative;
+        }
+        .header {
+            text-align: center;
+            color: white;
+            padding: var(--header-padding);
+            background: rgba(0,0,0,0.85);
+            border-bottom: 4px solid gold;
+        }
+        .header h2 {
+            margin: 0;
+            font-size: clamp(1.2rem, 2vw, 1.6rem);
+        }
+        .score {
+            margin-top: 4px;
+            font-size: clamp(0.95rem, 1.6vw, 1.1rem);
+        }
+        .play-area {
+            flex: 1;
+            min-height: 0;
+            position: relative;
+        }
+        .banks {
+            display: flex;
+            height: var(--bank-height);
+            gap: var(--bank-gap);
+            padding: var(--bank-padding);
+            background: rgba(0,0,0,0.9);
+        }
+        .bank {
+            flex: 1;
+            min-width: 0;
+            border-radius: 15px;
+            border: 2px solid #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-y: auto;
+            padding: var(--bank-padding);
+            color: white;
+        }
+        .bank-title { font-weight: bold; margin-bottom: 5px; font-size: clamp(0.88rem, 1.4vw, 1rem); color: #ffeb3b; }
         .paleo-bank { background-color: var(--paleo); }
         .neo-bank { background-color: var(--neo); }
         .metal-bank { background-color: var(--metal); }
 
         .word-bubble {
-            position: absolute; width: 130px; height: 90px;
+            position: absolute; width: var(--bubble-width); height: var(--bubble-height);
             background: #5d4037; border-radius: 15px; cursor: pointer;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             font-weight: bold; color: transparent; border: 3px dashed #3e2723;
             box-shadow: 0 5px 10px rgba(0,0,0,0.5); z-index: 10;
+            padding: 4px;
+            box-sizing: border-box;
+            text-align: center;
         }
         /* Reveal State */
         .word-bubble.revealed { background: white; color: black; border: 3px solid #333; }
-        .word-bubble span:first-child { font-size: 2.2rem; display: none; pointer-events: none;}
+        .word-bubble span:first-child { font-size: clamp(1.5rem, 2.6vw, 2.2rem); display: none; pointer-events: none;}
         .word-bubble.revealed span:first-child { display: block; }
-        .word-bubble span:last-child { pointer-events: none; }
+        .word-bubble span:last-child { pointer-events: none; font-size: clamp(0.75rem, 1.3vw, 0.95rem); line-height: 1.1; }
 
         .banked-item {
             background: rgba(255,255,255,0.95); border-radius: 8px;
-            margin: 3px; padding: 5px; font-size: 0.9rem;
+            margin: 3px; padding: 5px; font-size: clamp(0.78rem, 1.2vw, 0.9rem);
             display: flex; align-items: center; width: 95%; color: #000; font-weight: bold;
+            box-sizing: border-box;
         }
 
         #start-screen {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.98); display: flex; flex-direction: column;
             justify-content: center; align-items: center; z-index: 5000; color: white;
+            padding: 24px;
+            box-sizing: border-box;
+            text-align: center;
         }
-        button { padding: 35px 90px; font-size: 3.5rem; cursor: pointer; background: #e67e22; border: none; border-radius: 25px; color: white; font-weight: bold; box-shadow: 0 10px #bf360c; }
+        .start-title {
+            font-size: clamp(2.2rem, 6vw, 4rem);
+            color: #ffca28;
+            margin-bottom: 10px;
+        }
+        .start-copy {
+            font-size: clamp(1rem, 2.5vw, 1.8rem);
+            margin-bottom: 40px;
+        }
+        button {
+            padding: clamp(18px, 3vw, 35px) clamp(36px, 8vw, 90px);
+            font-size: clamp(1.4rem, 5vw, 3.5rem);
+            cursor: pointer;
+            background: #e67e22;
+            border: none;
+            border-radius: 25px;
+            color: white;
+            font-weight: bold;
+            box-shadow: 0 10px #bf360c;
+            max-width: min(90vw, 520px);
+        }
+
+        @media (max-width: 1024px) and (orientation: portrait) {
+            #game-container {
+                flex-direction: column;
+            }
+
+            .team-section {
+                min-height: 0;
+            }
+
+            :root {
+                --bank-height: clamp(92px, 14vh, 120px);
+            }
+        }
+
+        @media (max-width: 900px) {
+            .banks {
+                gap: 6px;
+            }
+
+            .bank {
+                border-radius: 12px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            :root {
+                --bubble-width: clamp(78px, 18vw, 102px);
+                --bubble-height: clamp(58px, 13vw, 76px);
+                --bank-height: clamp(88px, 16vh, 110px);
+            }
+
+            .team-section {
+                border-width: 2px;
+            }
+
+            .header {
+                border-bottom-width: 2px;
+            }
+
+            .word-bubble {
+                border-width: 2px;
+            }
+        }
     </style>
 </head>
 <body>
 
     <div id="start-screen">
-        <h1 style="font-size: 4rem; color: #ffca28; margin-bottom: 10px;">ARTIFACT DIG</h1>
-        <p style="font-size: 1.8rem; margin-bottom: 40px;">Touch dirt to see words. Drag to the right age!</p>
+        <h1 class="start-title">ARTIFACT DIG</h1>
+        <p class="start-copy">Touch dirt to see words. Drag to the right age!</p>
         <button onclick="startGame()">START GAME</button>
     </div>
 
