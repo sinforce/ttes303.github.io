@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Final Archaeology Battle</title>
+    <style>
+        :root { --paleo: #8d6e63; --neo: #5d4037; --metal: #455a64; }
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            overflow: hidden; font-family: "Century Gothic", Futura, sans-serif;
+            background-color: #2b1a0a; touch-action: none; user-select: none;
+        }
+        #game-container {
+            display: flex; width: 100vw; height: 100vh;
+            background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), 
+                              url('https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Archaeological_dig_site.jpg/1200px-Archaeological_dig_site.jpg');
+            background-size: cover; background-position: center;
+        }
+        .team-section { flex: 1; display: flex; flex-direction: column; border: 4px solid #d35400; position: relative; }
+        .header { text-align: center; color: white; padding: 10px; background: rgba(0,0,0,0.85); border-bottom: 4px solid gold; }
+        .play-area { flex: 1; position: relative; }
+        .banks { display: flex; height: 180px; gap: 10px; padding: 10px; background: rgba(0,0,0,0.9); }
+        .bank { flex: 1; border-radius: 15px; border: 2px solid #fff; display: flex; flex-direction: column; align-items: center; overflow-y: auto; padding: 10px; color: white; }
+        .bank-title { font-weight: bold; margin-bottom: 5px; font-size: 1rem; color: #ffeb3b; }
+        .paleo-bank { background-color: var(--paleo); }
+        .neo-bank { background-color: var(--neo); }
+        .metal-bank { background-color: var(--metal); }
+
+        .word-bubble {
+            position: absolute; width: 130px; height: 90px;
+            background: #5d4037; border-radius: 15px; cursor: pointer;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            font-weight: bold; color: transparent; border: 3px dashed #3e2723;
+            box-shadow: 0 5px 10px rgba(0,0,0,0.5); z-index: 10;
+        }
+        /* Reveal State */
+        .word-bubble.revealed { background: white; color: black; border: 3px solid #333; }
+        .word-bubble span:first-child { font-size: 2.2rem; display: none; pointer-events: none;}
+        .word-bubble.revealed span:first-child { display: block; }
+        .word-bubble span:last-child { pointer-events: none; }
+
+        .banked-item {
+            background: rgba(255,255,255,0.95); border-radius: 8px;
+            margin: 3px; padding: 5px; font-size: 0.9rem;
+            display: flex; align-items: center; width: 95%; color: #000; font-weight: bold;
+        }
+
+        #start-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.98); display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 5000; color: white;
+        }
+        button { padding: 35px 90px; font-size: 3.5rem; cursor: pointer; background: #e67e22; border: none; border-radius: 25px; color: white; font-weight: bold; box-shadow: 0 10px #bf360c; }
+    </style>
+</head>
+<body>
+
+    <div id="start-screen">
+        <h1 style="font-size: 4rem; color: #ffca28; margin-bottom: 10px;">ARTIFACT DIG</h1>
+        <p style="font-size: 1.8rem; margin-bottom: 40px;">Touch dirt to see words. Drag to the right age!</p>
+        <button onclick="startGame()">START GAME</button>
+    </div>
+
+    <div id="game-container">
+        <div class="team-section" id="team1">
+            <div class="header"><h2>TEAM 1</h2><div class="score">Remains: 15</div></div>
+            <div class="play-area"></div>
+            <div class="banks">
+                <div class="bank paleo-bank" data-age="paleo"><div class="bank-title">Paleolithic</div></div>
+                <div class="bank neo-bank" data-age="neo"><div class="bank-title">Neolithic</div></div>
+                <div class="bank metal-bank" data-age="metal"><div class="bank-title">Metal Age</div></div>
+            </div>
+        </div>
+        <div class="team-section" id="team2">
+            <div class="header"><h2>TEAM 2</h2><div class="score">Remains: 15</div></div>
+            <div class="play-area"></div>
+            <div class="banks">
+                <div class="bank paleo-bank" data-age="paleo"><div class="bank-title">Paleolithic</div></div>
+                <div class="bank neo-bank" data-age="neo"><div class="bank-title">Neolithic</div></div>
+                <div class="bank metal-bank" data-age="metal"><div class="bank-title">Metal Age</div></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let audioCtx = null;
+
+        function playDing() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.3);
+        }
+
+        function startBackgroundMusic() {
+            const secondsPerBeat = 0.5;
+            let beat = 0;
+            setInterval(() => {
+                if (!audioCtx) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                const notes = [110, 110, 130, 110, 146, 110, 130, 123];
+                osc.frequency.value = notes[beat % notes.length];
+                osc.type = 'triangle';
+                gain.gain.setValueAtTime(0.03, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.4);
+                beat++;
+            }, 500);
+        }
+
+        const artifactData = [
+            { t: "stone tools", a: "paleo", i: "🪨" }, { t: "knapping", a: "paleo", i: "⚒️" },
+            { t: "hunting", a: "paleo", i: "🏹" }, { t: "fishing", a: "paleo", i: "🐟" },
+            { t: "gathering", a: "paleo", i: "🧺" }, { t: "pottery", a: "neo", i: "🏺" },
+            { t: "hunting", a: "neo", i: "🍖" }, { t: "gathering", a: "neo", i: "🍓" },
+            { t: "fishing", a: "neo", i: "🎣" }, { t: "stone tools", a: "neo", i: "🔪" },
+            { t: "metal", a: "metal", i: "🛡️" }, { t: "glass", a: "metal", i: "💎" },
+            { t: "farming", a: "metal", i: "🌾" }, { t: "hunting", a: "metal", i: "⚔️" },
+            { t: "fishing", a: "metal", i: "🛶" }
+        ];
+
+        function startGame() {
+            document.getElementById('start-screen').style.display = 'none';
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            startBackgroundMusic();
+            playDing();
+            init('team1');
+            init('team2');
+        }
+
+        function init(teamId) {
+            const area = document.querySelector(`#${teamId} .play-area`);
+            const label = document.querySelector(`#${teamId} .score`);
+            let count = 15;
+
+            artifactData.forEach((item, idx) => {
+                const bubble = document.createElement('div');
+                bubble.className = 'word-bubble';
+                bubble.innerHTML = `<span>${item.i}</span><span>${item.t}</span>`;
+                bubble.style.left = (idx % 4) * 23 + 5 + '%';
+                bubble.style.top = Math.floor(idx / 4) * 22 + 5 + '%';
+
+                bubble.addEventListener('pointerdown', function handleDown(e) {
+                    if(!bubble.classList.contains('revealed')) {
+                        bubble.classList.add('revealed');
+                        return;
+                    }
+
+                    bubble.setPointerCapture(e.pointerId);
+                    bubble.style.zIndex = 1000;
+
+                    const move = (me) => {
+                        const r = area.getBoundingClientRect();
+                        bubble.style.left = (me.clientX - r.left - bubble.offsetWidth/2) + 'px';
+                        bubble.style.top = (me.clientY - r.top - bubble.offsetHeight/2) + 'px';
+                    };
+
+                    const up = (ue) => {
+                        bubble.releasePointerCapture(ue.pointerId);
+                        bubble.removeEventListener('pointermove', move);
+                        bubble.removeEventListener('pointerup', up);
+                        bubble.style.zIndex = 10;
+                        
+                        const bR = bubble.getBoundingClientRect();
+                        const banks = document.querySelectorAll(`#${teamId} .bank`);
+                        
+                        banks.forEach(bank => {
+                            const r = bank.getBoundingClientRect();
+                            if (bR.left < r.right && bR.right > r.left && bR.top < r.bottom && bR.bottom > r.top) {
+                                if (bank.dataset.age === item.a) {
+                                    playDing();
+                                    bubble.remove();
+                                    const p = document.createElement('div');
+                                    p.className = 'banked-item';
+                                    p.innerHTML = `${item.i} <span style="margin-left:8px">${item.t}</span>`;
+                                    bank.appendChild(p);
+                                    count--;
+                                    label.innerText = `Remains: ${count}`;
+                                }
+                            }
+                        });
+                    };
+                    bubble.addEventListener('pointermove', move);
+                    bubble.addEventListener('pointerup', up);
+                });
+                area.appendChild(bubble);
+            });
+        }
+    </script>
+</body>
+</html>
